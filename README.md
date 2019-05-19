@@ -1,4 +1,4 @@
-# CountGeekbenchResults
+# CountGeekbenchScores
 
 Count the average score of the device specified by keywords.
 
