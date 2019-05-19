@@ -73,7 +73,7 @@ def main(keywords):
     st_flo = sum(map(int, results[3::10])) // num
     st_mem = sum(map(int, results[4::10])) // num
     mt_tot = sum(map(int, results[5::10])) // num
-    mt_cry = sum(map(int, results[5::10])) // num
+    mt_cry = sum(map(int, results[6::10])) // num
     mt_int = sum(map(int, results[7::10])) // num
     mt_flo = sum(map(int, results[8::10])) // num
     mt_mem = sum(map(int, results[9::10])) // num
