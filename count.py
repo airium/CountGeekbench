@@ -1,5 +1,5 @@
-import sys
 import re
+import sys
 import asyncio
 import urllib.parse
 
@@ -14,6 +14,8 @@ SCORE_ELEMENT_PATTERN = r'''<th class=['"]score['"]>(?P<score>[0-9]?[0-9]?[0-9]?
 # limit to the most recent 40 pages, i.e. 1000 samples
 MAX_NUM_PAGES = 40
 RESULTS_PER_PAGE = 25
+# the base url for Geekbench
+GEEKBENCH_BASE_URL = 'https://browser.geekbench.com'
 
 
 async def fetch(sess, url:str) -> str:
@@ -21,11 +23,11 @@ async def fetch(sess, url:str) -> str:
         return await response.text()
 
 
-async def getSamples(keywords: str) -> list:
+async def getSamples(keywords:str) -> list:
     async with aiohttp.ClientSession() as sess:
 
         print('Checking keywords...', end='')
-        html = await fetch(sess, f'https://browser.geekbench.com/v4/cpu/search?q={keywords}')
+        html = await fetch(sess, f'{GEEKBENCH_BASE_URL}/v4/cpu/search?q={keywords}')
         match = re.search(NUM_RESULTS_PATTERN, html)
         if match:
             num_results = int(match.group('num_results').replace(',', ''))
@@ -37,9 +39,8 @@ async def getSamples(keywords: str) -> list:
         print(f'found {num_results} results (using {num_pages * RESULTS_PER_PAGE})')
 
         print('Fetching the urls of results...', end='')
-        result_list_urls = \
-            tuple(f'https://browser.geekbench.com/v4/cpu/search?page={page}&q={keywords}'
-                  for page in range(1, num_pages + 1))
+        result_list_urls = tuple(f'{GEEKBENCH_BASE_URL}/v4/cpu/search?page={page}&q={keywords}'
+                                 for page in range(1, num_pages + 1))
         tasks = map(asyncio.ensure_future, (fetch(sess, url) for url in result_list_urls))
         result_list_htmls = await asyncio.gather(*tasks)
         result_list_htmls = ''.join(result_list_htmls)
@@ -47,7 +48,7 @@ async def getSamples(keywords: str) -> list:
 
         print('Fetching the scores of results...', end='')
         result_urls = re.findall(RESULT_URL_PATTERN, result_list_htmls)
-        result_urls = tuple(f'https://browser.geekbench.com/{url}' for url in result_urls)
+        result_urls = tuple(f'{GEEKBENCH_BASE_URL}/{url}' for url in result_urls)
         tasks = map(asyncio.ensure_future, (fetch(sess, url) for url in result_urls))
         result_htmls = await asyncio.gather(*tasks)
         result_htmls = ''.join(result_htmls)
