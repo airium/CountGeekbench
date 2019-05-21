@@ -11,8 +11,8 @@ NUM_RESULTS_PATTERN = r'''<small>(?P<num_results>[0-9]?[0-9]?[0-9]?,[0-9]?[0-9]?
 RESULT_URL_PATTERN = r'''<a href=['"](?P<result>/v4/cpu/[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9])['"]>'''
 # the score up to about 1e6
 SCORE_ELEMENT_PATTERN = r'''<th class=['"]score['"]>(?P<score>[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9])</th>'''
-# limit to the most recent 40 pages, i.e. 1000 samples
-MAX_NUM_PAGES = 40
+# limit to the most recent 1000 samples i.e. 40 pages
+MAX_NUM_RESULTS = 1000
 RESULTS_PER_PAGE = 25
 # the base url for Geekbench
 GEEKBENCH_BASE_URL = 'https://browser.geekbench.com'
@@ -35,10 +35,12 @@ async def getSamples(keywords:str) -> list:
             raise ValueError('The regex pattern to find the number of results is INVALID')
         if not num_results:
             raise ValueError('No result exists for your keywords')
-        num_pages = min(MAX_NUM_PAGES, num_results / RESULTS_PER_PAGE)
-        print(f'found {num_results} results (using {num_pages * RESULTS_PER_PAGE})')
+        print(f'found {num_results} results ', end='')
+        num_results = min(MAX_NUM_RESULTS, num_results)
+        print(f'(using {num_results})')
 
         print('Fetching the urls of results...', end='')
+        num_pages = (num_results // RESULTS_PER_PAGE) + (1 if num_results % RESULTS_PER_PAGE else 0)
         result_list_urls = tuple(f'{GEEKBENCH_BASE_URL}/v4/cpu/search?page={page}&q={keywords}'
                                  for page in range(1, num_pages + 1))
         tasks = map(asyncio.ensure_future, (fetch(sess, url) for url in result_list_urls))
@@ -57,7 +59,7 @@ async def getSamples(keywords:str) -> list:
     return re.findall(SCORE_ELEMENT_PATTERN, result_htmls)
 
 
-def main(keywords):
+def main(keywords:str) -> None:
     if not keywords:
         raise ValueError('Please indicate your keywords for searching')
     keywords = ' '.join(tuple(map(str.strip, keywords)))
