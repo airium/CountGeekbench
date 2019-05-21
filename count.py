@@ -11,8 +11,8 @@ NUM_RESULTS_PATTERN = r'''<small>(?P<num_results>[0-9]?[0-9]?[0-9]?,?[0-9]?[0-9]
 RESULT_URL_PATTERN = r'''<a href=['"]/(?P<result>v4/cpu/[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9])['"]>'''
 # the score up to about 1e6
 SCORE_ELEMENT_PATTERN = r'''<th class=['"]score['"]>(?P<score>[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9])</th>'''
-# limit to the most recent 1000 samples i.e. 40 pages
-MAX_NUM_RESULTS = 1000
+# limit to the most recent 100 samples i.e. 4 pages
+MAX_NUM_RESULTS = 100
 RESULTS_PER_PAGE = 25
 # the base url for Geekbench
 GEEKBENCH_BASE_URL = 'https://browser.geekbench.com'
