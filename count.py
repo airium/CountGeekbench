@@ -16,6 +16,7 @@ MAX_NUM_RESULTS = 1000
 RESULTS_PER_PAGE = 25
 # the base url for Geekbench
 GEEKBENCH_BASE_URL = 'https://browser.geekbench.com'
+GEEKBENCH_REQUEST_LIMIT = 5
 
 
 async def fetch(sess, url:str) -> str:
@@ -24,7 +25,8 @@ async def fetch(sess, url:str) -> str:
 
 
 async def getSamples(keywords:str) -> list:
-    async with aiohttp.ClientSession() as sess:
+    connector = aiohttp.TCPConnector(limit_per_host=GEEKBENCH_REQUEST_LIMIT)
+    async with aiohttp.ClientSession(connector=connector) as sess:
 
         print('Checking keywords...', end='')
         html = await fetch(sess, f'{GEEKBENCH_BASE_URL}/v4/cpu/search?q={keywords}')
