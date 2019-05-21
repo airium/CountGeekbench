@@ -4,6 +4,7 @@ import asyncio
 import urllib.parse
 
 import aiohttp
+import numpy as np
 
 
 # the number of samples up to about 1e12
@@ -69,18 +70,31 @@ def main(keywords:str) -> None:
     results = asyncio.run(getSamples(keywords))
     if not results:
         raise ValueError('No result succussfully retrieved')
-    num, rem = divmod(len(results), 10)
-    assert rem == 0
-    st_tot = sum(map(int, results[0::10])) // num
-    st_cry = sum(map(int, results[1::10])) // num
-    st_int = sum(map(int, results[2::10])) // num
-    st_flo = sum(map(int, results[3::10])) // num
-    st_mem = sum(map(int, results[4::10])) // num
-    mt_tot = sum(map(int, results[5::10])) // num
-    mt_cry = sum(map(int, results[6::10])) // num
-    mt_int = sum(map(int, results[7::10])) // num
-    mt_flo = sum(map(int, results[8::10])) // num
-    mt_mem = sum(map(int, results[9::10])) // num
+
+    results = np.asarray(results, dtype=np.int32).reshape(-1, 10)
+    st_avg = np.mean(results[:, 0])
+    st_std = np.std(results[:, 0])
+    idx1 = np.where(results[:, 0] >= st_avg - 2 * st_std)
+    idx2 = np.where(results[:, 0] <= st_avg + 2 * st_std)
+    mt_avg = np.mean(results[:, 5])
+    mt_std = np.std(results[:, 5])
+    idx3 = np.where(results[:, 5] >= mt_avg - 2 * mt_std)
+    idx4 = np.where(results[:, 5] <= mt_avg + 2 * mt_std)
+    idx = np.intersect1d(np.intersect1d(idx1, idx2), np.intersect1d(idx3, idx4))
+    if len(idx):
+        print(f'Using {len(idx)}/{len(results)} results within 2 standard deviations')
+        results = results[idx]
+    st_tot = int(np.mean(results[:, 0]))
+    st_cry = int(np.mean(results[:, 1]))
+    st_int = int(np.mean(results[:, 2]))
+    st_flo = int(np.mean(results[:, 3]))
+    st_mem = int(np.mean(results[:, 4]))
+    mt_tot = int(np.mean(results[:, 5]))
+    mt_cry = int(np.mean(results[:, 6]))
+    mt_int = int(np.mean(results[:, 7]))
+    mt_flo = int(np.mean(results[:, 8]))
+    mt_mem = int(np.mean(results[:, 9]))
+
     print(f'''
     Avg score       st       mt    ratio
     integer : {st_int:>8d} {mt_int:>8d} {mt_int/st_int:>8.2f}
