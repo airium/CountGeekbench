@@ -8,10 +8,10 @@ import numpy as np
 
 
 # the number of samples up to about 1e12
-NUM_RESULTS_PATTERN = r'''<small>(?P<num_results>[0-9]?[0-9]?[0-9]?,?[0-9]?[0-9]?[0-9]?,?[0-9]?[0-9]?[0-9]?,?[0-9]?[0-9]?[0-9]) results? found</small>'''
-RESULT_URL_PATTERN = r'''<a href=['"]/(?P<result>v4/cpu/[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9])['"]>'''
+NUM_RESULTS_PATTERN = r'<small>(?P<num_results>[0-9]{0,3},?[0-9]{0,3},?[0-9]{0,3},?[0-9]{1,3}) results? found</small>'
+RESULT_URL_PATTERN = r'''<a href=['"]/(?P<result>v4/cpu/[0-9]{1,12})['"]>'''
 # the score up to about 1e6
-SCORE_ELEMENT_PATTERN = r'''<th class=['"]score['"]>(?P<score>[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9])</th>'''
+SCORE_ELEMENT_PATTERN = r'''<th class=['"]score['"]>(?P<score>[0-9]{1,6})</th>'''
 # limit to the most recent 100 samples i.e. 4 pages
 MAX_NUM_RESULTS = 100
 RESULTS_PER_PAGE = 25
