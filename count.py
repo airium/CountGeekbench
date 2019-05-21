@@ -7,7 +7,7 @@ import aiohttp
 
 
 # the number of samples up to about 1e12
-NUM_RESULTS_PATTERN = r'''<small>(?P<num_results>[0-9]?[0-9]?[0-9]?,[0-9]?[0-9]?[0-9]?,?[0-9]?[0-9]?[0-9]?,?[0-9]?[0-9]?[0-9]) results found</small>'''
+NUM_RESULTS_PATTERN = r'''<small>(?P<num_results>[0-9]?[0-9]?[0-9]?,?[0-9]?[0-9]?[0-9]?,?[0-9]?[0-9]?[0-9]?,?[0-9]?[0-9]?[0-9]) results? found</small>'''
 RESULT_URL_PATTERN = r'''<a href=['"](?P<result>/v4/cpu/[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9])['"]>'''
 # the score up to about 1e6
 SCORE_ELEMENT_PATTERN = r'''<th class=['"]score['"]>(?P<score>[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9])</th>'''
