@@ -16,18 +16,20 @@ numpy
 
 ```text
 $ python count.py 8750h
-Checking keywords...found 43486 results (using 100)
-Fetching the urls of results...Success
-Fetching the scores of results...Success
-Using 92/100 results within 2 standard deviations
+Checking keywords... use 100 of 43520 found results
+Fetching the links of results... OK
+Fetching the scores of results... OK
+Using 93of100 results within 2 standard deviations
 
     Avg score       st       mt    ratio
-    integer :     5038    24860     4.93
-    float   :     4917    24174     4.92
-    crypto  :     4152    13109     3.16
-    memory  :     4561     4977     1.09
-    total   :     4862    20090     4.13
+    integer :     5028    24655     4.90
+    float   :     4908    24078     4.91
+    crypto  :     4178    13335     3.19
+    memory  :     4553     5024     1.10
+    total   :     4854    19990     4.12
 ```
+
+The script takes ~2 minutes to complete due to Geekbench limit.
 
 ---
 
