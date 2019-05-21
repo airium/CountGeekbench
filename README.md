@@ -19,7 +19,7 @@ $ python count.py 8750h
 Checking keywords... use 100 of 43520 found results
 Fetching the links of results... OK
 Fetching the scores of results... OK
-Using 93of100 results within 2 standard deviations
+Using 93 of 100 results within 2 standard deviations
 
     Avg score       st       mt    ratio
     integer :     5028    24655     4.90
@@ -29,7 +29,9 @@ Using 93of100 results within 2 standard deviations
     total   :     4854    19990     4.12
 ```
 
-The script takes ~2 minutes to complete due to Geekbench limit.
+The script takes ~2 minutes to complete due to Geekbench limit.\
+The result should be slightly higher than that on Geekbench broswer.
+It also provides the marks for sub parts.
 
 ---
 
