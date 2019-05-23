@@ -30,7 +30,7 @@ Using 93 of 100 results within 2 standard deviations
 ```
 
 The script takes ~2 minutes to complete due to Geekbench limit.\
-The result should be slightly higher than that on Geekbench broswer.
+The result should be slightly higher than that on Geekbench browser.
 It also provides the marks for sub parts.
 
 ---
