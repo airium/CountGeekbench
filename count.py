@@ -70,7 +70,7 @@ def main(keywords:str) -> None:
 
     results = np.asarray(results, dtype=np.int32).reshape(-1, 10)
     st_avg = np.mean(results[:, 0])
-    st_std = np.std(results[:, 0])
+    st_std = np.std(results[:, 0], ddof=1)
     idx1 = np.where(results[:, 0] >= st_avg - 1 * st_std)
     idx2 = np.where(results[:, 0] <= st_avg + 1 * st_std)
     mt_avg = np.mean(results[:, 5])
