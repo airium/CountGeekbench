@@ -15,18 +15,18 @@ numpy
 ## Example
 
 ```text
-$ python count.py 8750h
-Checking keywords... use 100 of 43520 found results
+$ python count.py sdm845
+Checking keywords... use 200 of 318881 found results
 Fetching the links of results... OK
 Fetching the scores of results... OK
-Using 93 of 100 results within 2 standard deviations
+Using 162 of 200 results within 1 standard deviation
 
     Avg score       st       mt    ratio
-    integer :     5028    24655     4.90
-    float   :     4908    24078     4.91
-    crypto  :     4178    13335     3.19
-    memory  :     4553     5024     1.10
-    total   :     4854    19990     4.12
+    integer :     2554    11235     4.40
+    float   :     1955     7874     4.03
+    crypto  :     1467     7227     4.93
+    memory  :     2463     2988     1.21
+    total   :     2302     8377     3.64
 ```
 
 The script takes ~2 minutes to complete due to Geekbench limit.\
