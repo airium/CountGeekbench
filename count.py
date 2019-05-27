@@ -13,7 +13,7 @@ RESULT_URL_PATTERN = r'''<a href=['"]/(?P<result>v4/cpu/[0-9]{1,12})['"]>'''
 # the pattern to match the score of elements from https://browser.geekbench.com/v4/cpu/<result_id>
 SCORE_ELEMENT_PATTERN = r'''<th class=['"]score['"]>(?P<score>[0-9]{1,6})</th>'''
 # limit to the most recent 100 results i.e. 4 pages
-MAX_NUM_RESULTS = 100
+MAX_NUM_RESULTS = 200
 RESULTS_PER_PAGE = 25
 # the base url for Geekbench
 GEEKBENCH_BASE_URL = 'https://browser.geekbench.com'
@@ -71,15 +71,15 @@ def main(keywords:str) -> None:
     results = np.asarray(results, dtype=np.int32).reshape(-1, 10)
     st_avg = np.mean(results[:, 0])
     st_std = np.std(results[:, 0])
-    idx1 = np.where(results[:, 0] >= st_avg - 2 * st_std)
-    idx2 = np.where(results[:, 0] <= st_avg + 2 * st_std)
+    idx1 = np.where(results[:, 0] >= st_avg - 1 * st_std)
+    idx2 = np.where(results[:, 0] <= st_avg + 1 * st_std)
     mt_avg = np.mean(results[:, 5])
     mt_std = np.std(results[:, 5])
-    idx3 = np.where(results[:, 5] >= mt_avg - 2 * mt_std)
-    idx4 = np.where(results[:, 5] <= mt_avg + 2 * mt_std)
+    idx3 = np.where(results[:, 5] >= mt_avg - 1 * mt_std)
+    idx4 = np.where(results[:, 5] <= mt_avg + 1 * mt_std)
     idx = np.intersect1d(np.intersect1d(idx1, idx2), np.intersect1d(idx3, idx4))
     if len(idx):
-        print(f'Using {len(idx)} of {len(results)} results within 2 standard deviations')
+        print(f'Using {len(idx)} of {len(results)} results within 1 standard deviation')
         results = results[idx]
     st_tot = int(np.mean(results[:, 0]))
     st_cry = int(np.mean(results[:, 1]))
