@@ -3,6 +3,7 @@ import sys
 import asyncio
 import urllib.parse
 import argparse
+import itertools
 
 import aiohttp
 import numpy as np
@@ -30,8 +31,8 @@ class CustomHelpFormatter(argparse.HelpFormatter):
         return ', '.join(action.option_strings) + ' ' + args_string
 
 
-async def fetch(sess, url:str) -> str:
-    async with sess.get(url) as response:
+async def fetch(sess, url:str, proxy:str=None) -> str:
+    async with sess.get(url, proxy=proxy) as response:
         return await response.text()
 
 
@@ -42,7 +43,7 @@ async def getResults(args:argparse.Namespace) -> list:
     async with aiohttp.ClientSession(connector=connector) as sess:
 
         print('Checking keywords...', end=' ', flush=True)
-        html = await fetch(sess, f'{GEEKBENCH_BASE_URL}/v4/cpu/search?q={keywords}')
+        html = await fetch(sess, f'{GEEKBENCH_BASE_URL}/v4/cpu/search?q={keywords}', proxy=args.proxy[0])
         match = re.search(NUM_RESULTS_PATTERN, html)
         if match:
             num_all_results = int(match.group('num_results').replace(',', ''))
@@ -56,8 +57,9 @@ async def getResults(args:argparse.Namespace) -> list:
         print('Fetching the links of results...', end=' ', flush=True)
         num_pages = (num_results // RESULTS_PER_PAGE) + (1 if num_results % RESULTS_PER_PAGE else 0)
         list_urls = tuple(f'{GEEKBENCH_BASE_URL}/v4/cpu/search?page={page}&q={keywords}'
-                                 for page in range(1, num_pages + 1))
-        tasks = map(asyncio.ensure_future, (fetch(sess, url) for url in list_urls))
+                          for page in range(1, num_pages + 1))
+        tasks = map(asyncio.ensure_future, (fetch(sess, url, proxy)
+                                            for url, proxy in zip(list_urls, itertools.cycle(args.proxy))))
         list_htmls = await asyncio.gather(*tasks)
         list_htmls = ''.join(list_htmls)
         print('OK')
@@ -65,7 +67,8 @@ async def getResults(args:argparse.Namespace) -> list:
         print('Fetching the scores of results...', end=' ', flush=True)
         result_urls = re.findall(RESULT_URL_PATTERN, list_htmls)
         result_urls = tuple(f'{GEEKBENCH_BASE_URL}/{url}' for url in result_urls)
-        tasks = map(asyncio.ensure_future, (fetch(sess, url) for url in result_urls))
+        tasks = map(asyncio.ensure_future, (fetch(sess, url, proxy)
+                                            for url, proxy in zip(result_urls, itertools.cycle(args.proxy))))
         result_htmls = await asyncio.gather(*tasks)
         result_htmls = ''.join(result_htmls)
         print('OK')
@@ -121,4 +124,6 @@ if __name__ == '__main__':
                         help='the number of results to fetch (default: 100)')
     parser.add_argument('-c', '--connections', metavar='int', dest='n_connections', type=int, default=5,
                         help='the number of simultaneous connections (default: 5)')
+    parser.add_argument('--proxy', metavar='addr:port', dest='proxy', type=str, nargs='+', default=[None],
+                        help='the proxy server(s) for connections')
     main(parser.parse_args())
