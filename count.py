@@ -2,6 +2,7 @@ import re
 import sys
 import asyncio
 import urllib.parse
+import argparse
 
 import aiohttp
 import numpy as np
@@ -12,20 +13,32 @@ NUM_RESULTS_PATTERN = r'<small>(?P<num_results>[0-9]{0,3},?[0-9]{0,3},?[0-9]{0,3
 RESULT_URL_PATTERN = r'''<a href=['"]/(?P<result>v4/cpu/[0-9]{1,12})['"]>'''
 # the pattern to match the score of elements from https://browser.geekbench.com/v4/cpu/<result_id>
 SCORE_ELEMENT_PATTERN = r'''<th class=['"]score['"]>(?P<score>[0-9]{1,6})</th>'''
-# limit to the most recent 100 results i.e. 4 pages
-MAX_NUM_RESULTS = 200
 RESULTS_PER_PAGE = 25
-# the base url for Geekbench
 GEEKBENCH_BASE_URL = 'https://browser.geekbench.com'
-# the maximum simultaneous requests to Geekbench
-GEEKBENCH_REQUEST_LIMIT = 5
+
+
+class CustomHelpFormatter(argparse.HelpFormatter):
+
+    def __init__(self, prog):
+        super().__init__(prog, max_help_position=50, width=100)
+
+    def _format_action_invocation(self, action):
+        if not action.option_strings or action.nargs == 0:
+            return super()._format_action_invocation(action)
+        default = self._get_default_metavar_for_optional(action)
+        args_string = self._format_args(action, default)
+        return ', '.join(action.option_strings) + ' ' + args_string
+
 
 async def fetch(sess, url:str) -> str:
     async with sess.get(url) as response:
         return await response.text()
 
-async def getResults(keywords:str) -> list:
-    connector = aiohttp.TCPConnector(limit_per_host=GEEKBENCH_REQUEST_LIMIT)
+
+async def getResults(args:argparse.Namespace) -> list:
+
+    keywords = urllib.parse.quote(' '.join(tuple(map(str.strip, args.keywords))))
+    connector = aiohttp.TCPConnector(limit_per_host=args.n_connections)
     async with aiohttp.ClientSession(connector=connector) as sess:
 
         print('Checking keywords...', end=' ', flush=True)
@@ -37,7 +50,7 @@ async def getResults(keywords:str) -> list:
             raise ValueError('The regex pattern to find the number of results is INVALID')
         if num_all_results == 0:
             raise ValueError('No result exists for your keywords')
-        num_results = min(MAX_NUM_RESULTS, num_all_results)
+        num_results = min(args.n_results, num_all_results)
         print(f'use {num_results} of {num_all_results} found results')
 
         print('Fetching the links of results...', end=' ', flush=True)
@@ -59,12 +72,9 @@ async def getResults(keywords:str) -> list:
 
     return re.findall(SCORE_ELEMENT_PATTERN, result_htmls)
 
-def main(keywords:str) -> None:
-    if not keywords:
-        raise ValueError('Please indicate your keywords for searching')
-    keywords = ' '.join(tuple(map(str.strip, keywords)))
-    keywords = urllib.parse.quote(keywords)
-    results = asyncio.run(getResults(keywords))
+def main(args:argparse.Namespace) -> None:
+
+    results = asyncio.run(getResults(args))
     if not results:
         raise ValueError('No result successfully retrieved')
 
@@ -101,4 +111,14 @@ def main(keywords:str) -> None:
     total   : {st_tot:>8d} {mt_tot:>8d} {mt_tot/st_tot:>8.2f}''')
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+
+    parser = argparse.ArgumentParser(
+        formatter_class=lambda prog: CustomHelpFormatter(prog),
+        description='count a device\'s average score and sub-scores on Geekbench 4.')
+    parser.add_argument('keywords', metavar='keyword', type=str, nargs='+',
+                        help='the keywords to search results')
+    parser.add_argument('-n', '--number', metavar='int', dest='n_results',type=int, default=100,
+                        help='the number of results to fetch (default: 100)')
+    parser.add_argument('-c', '--connections', metavar='int', dest='n_connections', type=int, default=5,
+                        help='the number of simultaneous connections (default: 5)')
+    main(parser.parse_args())
