@@ -75,6 +75,7 @@ async def getResults(args:argparse.Namespace) -> list:
 
     return re.findall(SCORE_ELEMENT_PATTERN, result_htmls)
 
+
 def main(args:argparse.Namespace) -> None:
 
     results = asyncio.run(getResults(args))
@@ -113,6 +114,7 @@ def main(args:argparse.Namespace) -> None:
     memory  : {st_mem:>8d} {mt_mem:>8d} {mt_mem/st_mem:>8.2f}
     total   : {st_tot:>8d} {mt_tot:>8d} {mt_tot/st_tot:>8.2f}''')
 
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
@@ -125,5 +127,5 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--connections', metavar='int', dest='n_connections', type=int, default=5,
                         help='the number of simultaneous connections (default: 5)')
     parser.add_argument('--proxy', metavar='addr:port', dest='proxy', type=str, nargs='+', default=[None],
-                        help='the proxy server(s) for connections')
+                        help='the proxies for connections (http only)')
     main(parser.parse_args())
