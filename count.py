@@ -1,12 +1,12 @@
 import re
 import sys
 import asyncio
-import urllib.parse
 import argparse
 import itertools
+import urllib.parse
 
-import aiohttp
 import bs4
+import aiohttp
 import numpy as np
 
 
@@ -16,22 +16,19 @@ RESULTS_PER_PAGE = 25
 class GeekbenchUrls():
 
     @classmethod
-    def base(cls):
+    def base(cls) -> str:
         return 'https://browser.geekbench.com'
 
     @classmethod
-    def search(cls, keywords, page=None):
-        if page:
-            return f'{cls.base()}/v4/cpu/search?q={keywords}&page={page}'
-        else:
-            return f'{cls.base()}/v4/cpu/search?q={keywords}'
+    def search(cls, keywords, page=None) -> str:
+        return f'{cls.base()}/v4/cpu/search?q={keywords}&page={page if page else 1}'
 
     @classmethod
-    def result(cls, num):
+    def result(cls, num) -> str:
         return f'{cls.base()}/v4/cpu/{num}'
 
     @classmethod
-    def custom(cls, path):
+    def custom(cls, path) -> str:
         return f'{cls.base()}{path}'
 
 
@@ -61,14 +58,13 @@ async def getResults(args:argparse.Namespace) -> list:
 
         print('Checking keywords...', end=' ', flush=True)
         html = await fetch(sess, GeekbenchUrls.search(keywords), proxy=args.proxy[0])
-        n_str = bs4.BeautifulSoup(html, 'html.parser').find_all('h2')[0].small.string
-        n_results = int(n_str.split(' ')[0].replace(',', ''))
+        n_results = bs4.BeautifulSoup(html, 'html.parser').find_all('h2')[0].small.string
+        n_results = int(n_results.split(' ')[0].replace(',', ''))
         if n_results:
-            print(f'found {n_results} results', end=' ', flush=True)
+            print(f'{n_results} results exist', flush=True)
             n_results = min(args.n_results, n_results)
-            print(f'and will use {n_results}', flush=True)
         else:
-            print(f'\n\nNo result exists for the keywords!', flush=True)
+            print(f'No result exists', flush=True)
             sys.exit()
 
         print('Fetching links...', end=' ', flush=True)
@@ -77,14 +73,18 @@ async def getResults(args:argparse.Namespace) -> list:
         tasks = map(asyncio.ensure_future, (fetch(sess, url, proxy)
                                             for url, proxy in zip(urls, itertools.cycle(args.proxy))))
         htmls = await asyncio.gather(*tasks)
-        print('OK')
-
-        print('Fetching scores...', end=' ', flush=True)
         urls = []
         for html in htmls:
             for td in bs4.BeautifulSoup(html, 'html.parser').find_all('td'):
                 if 'model' in td['class']:
                     urls.append(GeekbenchUrls.custom(td.a['href']))
+        if urls:
+            print('OK', flush=True)
+        else:
+            print('ERROR', flush=True)
+            sys.exit()
+
+        print('Fetching scores...', end=' ', flush=True)
         tasks = map(asyncio.ensure_future, (fetch(sess, url, proxy)
                                             for url, proxy in zip(urls, itertools.cycle(args.proxy))))
         htmls = await asyncio.gather(*tasks)
@@ -101,43 +101,46 @@ async def getResults(args:argparse.Namespace) -> list:
         for html in htmls:
             for th in bs4.BeautifulSoup(html, 'html.parser').find_all('th'):
                 if 'score' in th['class']:
+                    # some `th`s with `class='score'` are not scores
                     try:
                         scores.append(int(th.string))
                     except ValueError:
                         continue
-        print('OK')
+        if scores:
+            print('OK', flush=True)
+        else:
+            print('ERROR', flush=True)
+            sys.exit()
+
     return scores
 
 
 def main(args:argparse.Namespace) -> None:
 
-    results = asyncio.run(getResults(args))
-    if not results:
-        raise ValueError('No result successfully retrieved')
-
-    results = np.asarray(results, dtype=np.int32).reshape(-1, 10)
-    st_avg = np.mean(results[:, 0])
-    st_std = np.std(results[:, 0], ddof=1)
-    idx1 = np.where(results[:, 0] >= st_avg - 1 * st_std)
-    idx2 = np.where(results[:, 0] <= st_avg + 1 * st_std)
-    mt_avg = np.mean(results[:, 5])
-    mt_std = np.std(results[:, 5])
-    idx3 = np.where(results[:, 5] >= mt_avg - 1 * mt_std)
-    idx4 = np.where(results[:, 5] <= mt_avg + 1 * mt_std)
+    scores = asyncio.run(getResults(args))
+    scores = np.asarray(scores, dtype=np.int32).reshape(-1, 10)
+    st_avg = np.mean(scores[:, 0])
+    st_std = np.std(scores[:, 0], ddof=1)
+    idx1 = np.where(scores[:, 0] >= st_avg - 1 * st_std)
+    idx2 = np.where(scores[:, 0] <= st_avg + 1 * st_std)
+    mt_avg = np.mean(scores[:, 5])
+    mt_std = np.std(scores[:, 5])
+    idx3 = np.where(scores[:, 5] >= mt_avg - 1 * mt_std)
+    idx4 = np.where(scores[:, 5] <= mt_avg + 1 * mt_std)
     idx = np.intersect1d(np.intersect1d(idx1, idx2), np.intersect1d(idx3, idx4))
-    if len(idx):
-        print(f'Using {len(idx)} of {len(results)} results within 1 standard deviation')
-        results = results[idx]
-    st_tot = int(np.mean(results[:, 0]))
-    st_cry = int(np.mean(results[:, 1]))
-    st_int = int(np.mean(results[:, 2]))
-    st_flo = int(np.mean(results[:, 3]))
-    st_mem = int(np.mean(results[:, 4]))
-    mt_tot = int(np.mean(results[:, 5]))
-    mt_cry = int(np.mean(results[:, 6]))
-    mt_int = int(np.mean(results[:, 7]))
-    mt_flo = int(np.mean(results[:, 8]))
-    mt_mem = int(np.mean(results[:, 9]))
+    print(f'Using {len(idx)} of {len(scores)} results within 1 standard deviation')
+
+    scores = scores[idx]
+    st_tot = int(np.mean(scores[:, 0]))
+    st_cry = int(np.mean(scores[:, 1]))
+    st_int = int(np.mean(scores[:, 2]))
+    st_flo = int(np.mean(scores[:, 3]))
+    st_mem = int(np.mean(scores[:, 4]))
+    mt_tot = int(np.mean(scores[:, 5]))
+    mt_cry = int(np.mean(scores[:, 6]))
+    mt_int = int(np.mean(scores[:, 7]))
+    mt_flo = int(np.mean(scores[:, 8]))
+    mt_mem = int(np.mean(scores[:, 9]))
 
     print(f'''
     Avg score       st       mt    ratio
