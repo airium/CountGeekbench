@@ -70,6 +70,15 @@ async def getResults(args:argparse.Namespace) -> list:
         tasks = map(asyncio.ensure_future, (fetch(sess, url, proxy)
                                             for url, proxy in zip(result_urls, itertools.cycle(args.proxy))))
         result_htmls = await asyncio.gather(*tasks)
+        for idx, html in enumerate(result_htmls):
+            for keyword in args.with_keywords:
+                if keyword not in html:
+                    result_htmls[idx] = '';
+                    break
+            for keyword in args.without_keywords:
+                if keyword in html:
+                    result_htmls[idx] = '';
+                    break
         result_htmls = ''.join(result_htmls)
         print('OK')
 
@@ -128,4 +137,8 @@ if __name__ == '__main__':
                         help='the number of simultaneous connections (default: 5)')
     parser.add_argument('--proxy', metavar='addr:port', dest='proxy', type=str, nargs='+', default=[None],
                         help='the proxies for connections (http only)')
+    parser.add_argument('--with', metavar='keyword', dest='with_keywords', type=str, nargs='+', default=[],
+                        help='keep a result only if its html has all of these keywords')
+    parser.add_argument('--without', metavar='keyword', dest='without_keywords', type=str, nargs='+', default=[],
+                        help='remove a result if only its html has any of these keywords')
     main(parser.parse_args())
