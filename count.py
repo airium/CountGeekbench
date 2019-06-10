@@ -128,7 +128,10 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
         formatter_class=lambda prog: CustomHelpFormatter(prog),
-        description='count a device\'s average score and sub-scores on Geekbench 4.')
+        description='count a device\'s average score and sub-scores on Geekbench 4.',
+        epilog='The maximum number of simultaneous requests to Geekbench seems to be around 5. \
+                Exceeding this number will receive the http 429 error. \
+                For a higher speed, try a group of load-balanced proxy servers.')
     parser.add_argument('keywords', metavar='keyword', type=str, nargs='+',
                         help='the keywords to search results')
     parser.add_argument('-n', '--number', metavar='int', dest='n_results',type=int, default=100,
