@@ -46,7 +46,7 @@ The one searches for Qualcomm Snapdragon 845.
 
 ```text
 $ python count.py sdm845
-Checking keywords... found 329574 results and will use 100
+Checking keywords... 329574 results exist
 Fetching links... OK
 Fetching scores... OK
 Using 74 of 100 results within 1 standard deviation
@@ -64,7 +64,7 @@ The one searches for HiSilicon Kirin 710.
 ```text
 $ python count.py ARM implementer 65 architecture 8 variant 0 part 3337 revision 2 --with 1.71 \
 --proxy http://127.0.0.1:1080 -n 500 -c 20
-Checking keywords... found 182343 results and will use 500
+Checking keywords... 182343 results exist
 Fetching links... OK
 Fetching scores... OK
 Using 84 of 116 results within 1 standard deviation
