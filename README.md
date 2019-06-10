@@ -7,6 +7,7 @@ Count the average score of the device specified by keywords.
 ```python
 sys.version_info >= (3, 7)
 aiohttp
+beautifulsoup4
 numpy
 ```
 
@@ -45,35 +46,35 @@ The one searches for Qualcomm Snapdragon 845.
 
 ```text
 $ python count.py sdm845
-Checking keywords... use 200 of 318881 found results
-Fetching the links of results... OK
-Fetching the scores of results... OK
-Using 162 of 200 results within 1 standard deviation
+Checking keywords... found 329574 results and will use 100
+Fetching links... OK
+Fetching scores... OK
+Using 74 of 100 results within 1 standard deviation
 
     Avg score       st       mt    ratio
-    integer :     2554    11235     4.40
-    float   :     1955     7874     4.03
-    crypto  :     1467     7227     4.93
-    memory  :     2463     2988     1.21
-    total   :     2302     8377     3.64
+    integer :     2593    11410     4.40
+    float   :     1989     8108     4.08
+    crypto  :     1498     7348     4.91
+    memory  :     2509     3036     1.21
+    total   :     2340     8541     3.65
 ```
 
 The one searches for HiSilicon Kirin 710.
 
 ```text
-$ python count.py ARM implementer 65 architecture 8 variant 0 part 3337 revision 2 \
---proxy http://127.0.0.1:1080 -n 500 -c 20 --with 1.71
-Checking keywords... use 500 of 182156 found results
-Fetching the links of results... OK
-Fetching the scores of results... OK
-Using 96 of 135 results within 1 standard deviation
+$ python count.py ARM implementer 65 architecture 8 variant 0 part 3337 revision 2 --with 1.71 \
+--proxy http://127.0.0.1:1080 -n 500 -c 20
+Checking keywords... found 182343 results and will use 500
+Fetching links... OK
+Fetching scores... OK
+Using 84 of 116 results within 1 standard deviation
 
     Avg score       st       mt    ratio
-    integer :     1765     7179     4.07
-    float   :     1191     4891     4.11
-    crypto  :     1037     5048     4.87
-    memory  :     1803     2025     1.12
-    total   :     1564     5355     3.42
+    integer :     1772     7201     4.06
+    float   :     1191     4921     4.13
+    crypto  :     1044     5051     4.84
+    memory  :     1800     2029     1.13
+    total   :     1567     5375     3.43
 ```
 
 ---
