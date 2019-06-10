@@ -11,11 +11,32 @@ import numpy as np
 # the pattern to match the number of results from https://browser.geekbench.com/v4/cpu/search?q=<keywords>
 NUM_RESULTS_PATTERN = r'<small>(?P<num_results>[0-9]{0,3},?[0-9]{0,3},?[0-9]{0,3},?[0-9]{1,3}) results? found</small>'
 # the pattern to match the urls of results from https://browser.geekbench.com/v4/cpu/search?q=<keywords>
-RESULT_URL_PATTERN = r'''<a href=['"]/(?P<result>v4/cpu/[0-9]{1,12})['"]>'''
+RESULT_URL_PATTERN = r'''<a href=['"](?P<result>/v4/cpu/[0-9]{1,12})['"]>'''
 # the pattern to match the score of elements from https://browser.geekbench.com/v4/cpu/<result_id>
 SCORE_ELEMENT_PATTERN = r'''<th class=['"]score['"]>(?P<score>[0-9]{1,6})</th>'''
 RESULTS_PER_PAGE = 25
-GEEKBENCH_BASE_URL = 'https://browser.geekbench.com'
+
+
+class GeekbenchUrls():
+
+    @classmethod
+    def base(cls):
+        return 'https://browser.geekbench.com'
+
+    @classmethod
+    def search(cls, keywords, page=None):
+        if page:
+            return f'{cls.base()}/v4/cpu/search?q={keywords}&page={page}'
+        else:
+            return f'{cls.base()}/v4/cpu/search?q={keywords}'
+
+    @classmethod
+    def result(cls, num):
+        return f'{cls.base()}/v4/cpu/{num}'
+
+    @classmethod
+    def custom(cls, path):
+        return f'{cls.base()}{path}'
 
 
 class CustomHelpFormatter(argparse.HelpFormatter):
@@ -43,7 +64,7 @@ async def getResults(args:argparse.Namespace) -> list:
     async with aiohttp.ClientSession(connector=connector) as sess:
 
         print('Checking keywords...', end=' ', flush=True)
-        html = await fetch(sess, f'{GEEKBENCH_BASE_URL}/v4/cpu/search?q={keywords}', proxy=args.proxy[0])
+        html = await fetch(sess, GeekbenchUrls.search(keywords), proxy=args.proxy[0])
         match = re.search(NUM_RESULTS_PATTERN, html)
         if match:
             num_all_results = int(match.group('num_results').replace(',', ''))
@@ -56,8 +77,7 @@ async def getResults(args:argparse.Namespace) -> list:
 
         print('Fetching the links of results...', end=' ', flush=True)
         num_pages = (num_results // RESULTS_PER_PAGE) + (1 if num_results % RESULTS_PER_PAGE else 0)
-        list_urls = tuple(f'{GEEKBENCH_BASE_URL}/v4/cpu/search?page={page}&q={keywords}'
-                          for page in range(1, num_pages + 1))
+        list_urls = tuple(GeekbenchUrls.search(keywords, page) for page in range(1, num_pages + 1))
         tasks = map(asyncio.ensure_future, (fetch(sess, url, proxy)
                                             for url, proxy in zip(list_urls, itertools.cycle(args.proxy))))
         list_htmls = await asyncio.gather(*tasks)
@@ -65,8 +85,7 @@ async def getResults(args:argparse.Namespace) -> list:
         print('OK')
 
         print('Fetching the scores of results...', end=' ', flush=True)
-        result_urls = re.findall(RESULT_URL_PATTERN, list_htmls)
-        result_urls = tuple(f'{GEEKBENCH_BASE_URL}/{url}' for url in result_urls)
+        result_urls = tuple(GeekbenchUrls.custom(url) for url in re.findall(RESULT_URL_PATTERN, list_htmls))
         tasks = map(asyncio.ensure_future, (fetch(sess, url, proxy)
                                             for url, proxy in zip(result_urls, itertools.cycle(args.proxy))))
         result_htmls = await asyncio.gather(*tasks)
