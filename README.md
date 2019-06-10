@@ -58,7 +58,7 @@ Using 162 of 200 results within 1 standard deviation
     total   :     2302     8377     3.64
 ```
 
-The one searches for HiSilicon Kirin 970.
+The one searches for HiSilicon Kirin 710.
 
 ```text
 $ python count.py ARM implementer 65 architecture 8 variant 0 part 3337 revision 2 \
