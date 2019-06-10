@@ -6,14 +6,10 @@ import argparse
 import itertools
 
 import aiohttp
+import bs4
 import numpy as np
 
-# the pattern to match the number of results from https://browser.geekbench.com/v4/cpu/search?q=<keywords>
-NUM_RESULTS_PATTERN = r'<small>(?P<num_results>[0-9]{0,3},?[0-9]{0,3},?[0-9]{0,3},?[0-9]{1,3}) results? found</small>'
-# the pattern to match the urls of results from https://browser.geekbench.com/v4/cpu/search?q=<keywords>
-RESULT_URL_PATTERN = r'''<a href=['"](?P<result>/v4/cpu/[0-9]{1,12})['"]>'''
-# the pattern to match the score of elements from https://browser.geekbench.com/v4/cpu/<result_id>
-SCORE_ELEMENT_PATTERN = r'''<th class=['"]score['"]>(?P<score>[0-9]{1,6})</th>'''
+
 RESULTS_PER_PAGE = 25
 
 
@@ -65,43 +61,52 @@ async def getResults(args:argparse.Namespace) -> list:
 
         print('Checking keywords...', end=' ', flush=True)
         html = await fetch(sess, GeekbenchUrls.search(keywords), proxy=args.proxy[0])
-        match = re.search(NUM_RESULTS_PATTERN, html)
-        if match:
-            num_all_results = int(match.group('num_results').replace(',', ''))
+        n_str = bs4.BeautifulSoup(html, 'html.parser').find_all('h2')[0].small.string
+        n_results = int(n_str.split(' ')[0].replace(',', ''))
+        if n_results:
+            print(f'found {n_results} results', end=' ', flush=True)
+            n_results = min(args.n_results, n_results)
+            print(f'and will use {n_results}', flush=True)
         else:
-            raise ValueError('The regex pattern to find the number of results is INVALID')
-        if num_all_results == 0:
-            raise ValueError('No result exists for your keywords')
-        num_results = min(args.n_results, num_all_results)
-        print(f'use {num_results} of {num_all_results} found results')
+            print(f'\n\nNo result exists for the keywords!', flush=True)
+            sys.exit()
 
-        print('Fetching the links of results...', end=' ', flush=True)
-        num_pages = (num_results // RESULTS_PER_PAGE) + (1 if num_results % RESULTS_PER_PAGE else 0)
-        list_urls = tuple(GeekbenchUrls.search(keywords, page) for page in range(1, num_pages + 1))
+        print('Fetching links...', end=' ', flush=True)
+        n_pages = (n_results // RESULTS_PER_PAGE) + (1 if n_results % RESULTS_PER_PAGE else 0)
+        urls = tuple(GeekbenchUrls.search(keywords, page) for page in range(1, n_pages + 1))
         tasks = map(asyncio.ensure_future, (fetch(sess, url, proxy)
-                                            for url, proxy in zip(list_urls, itertools.cycle(args.proxy))))
-        list_htmls = await asyncio.gather(*tasks)
-        list_htmls = ''.join(list_htmls)
+                                            for url, proxy in zip(urls, itertools.cycle(args.proxy))))
+        htmls = await asyncio.gather(*tasks)
         print('OK')
 
-        print('Fetching the scores of results...', end=' ', flush=True)
-        result_urls = tuple(GeekbenchUrls.custom(url) for url in re.findall(RESULT_URL_PATTERN, list_htmls))
+        print('Fetching scores...', end=' ', flush=True)
+        urls = []
+        for html in htmls:
+            for td in bs4.BeautifulSoup(html, 'html.parser').find_all('td'):
+                if 'model' in td['class']:
+                    urls.append(GeekbenchUrls.custom(td.a['href']))
         tasks = map(asyncio.ensure_future, (fetch(sess, url, proxy)
-                                            for url, proxy in zip(result_urls, itertools.cycle(args.proxy))))
-        result_htmls = await asyncio.gather(*tasks)
-        for idx, html in enumerate(result_htmls):
+                                            for url, proxy in zip(urls, itertools.cycle(args.proxy))))
+        htmls = await asyncio.gather(*tasks)
+        for idx, html in enumerate(htmls):
             for keyword in args.with_keywords:
                 if keyword not in html:
-                    result_htmls[idx] = '';
+                    htmls[idx] = '';
                     break
             for keyword in args.without_keywords:
                 if keyword in html:
-                    result_htmls[idx] = '';
+                    htmls[idx] = '';
                     break
-        result_htmls = ''.join(result_htmls)
+        scores = []
+        for html in htmls:
+            for th in bs4.BeautifulSoup(html, 'html.parser').find_all('th'):
+                if 'score' in th['class']:
+                    try:
+                        scores.append(int(th.string))
+                    except ValueError:
+                        continue
         print('OK')
-
-    return re.findall(SCORE_ELEMENT_PATTERN, result_htmls)
+    return scores
 
 
 def main(args:argparse.Namespace) -> None:
