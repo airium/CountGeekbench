@@ -45,9 +45,12 @@ class CustomHelpFormatter(argparse.HelpFormatter):
         return ', '.join(action.option_strings) + ' ' + args_string
 
 
-async def fetch(sess, url:str, proxy:str=None) -> str:
-    async with sess.get(url, proxy=proxy) as response:
-        return await response.text()
+async def fetch(sess, url:str, proxy:str=None, retry:int=3) -> str:
+    while True:
+        retry -= 1
+        response = await sess.get(url, proxy=proxy)
+        if response.status == 200 or not retry:
+            return await response.text()
 
 
 async def getResults(args:argparse.Namespace) -> list:
@@ -56,21 +59,20 @@ async def getResults(args:argparse.Namespace) -> list:
     connector = aiohttp.TCPConnector(limit_per_host=args.n_connections)
     async with aiohttp.ClientSession(connector=connector) as sess:
 
-        print('Checking keywords...', end=' ', flush=True)
-        html = await fetch(sess, GeekbenchUrls.search(keywords), proxy=args.proxy[0])
+        print(f'Looking for {args.n_pages} pages of results...', end=' ', flush=True)
+        html = await fetch(sess, GeekbenchUrls.search(keywords), proxy=args.proxy[0], retry=args.n_retry)
         n_results = bs4.BeautifulSoup(html, 'html.parser').find_all('h2')[0].small.string
         n_results = int(n_results.split(' ')[0].replace(',', ''))
-        if n_results:
-            print(f'{n_results} results exist', flush=True)
-            n_results = min(args.n_results, n_results)
+        n_pages = n_results // 25 + (1 if n_results % RESULTS_PER_PAGE else 0)
+        if n_pages:
+            print(f'{n_pages} found', flush=True)
+            n_pages = min(args.n_pages, n_pages)
         else:
-            print(f'No result exists', flush=True)
             sys.exit()
 
-        print('Fetching links...', end=' ', flush=True)
-        n_pages = (n_results // RESULTS_PER_PAGE) + (1 if n_results % RESULTS_PER_PAGE else 0)
+        print('Gathering links...', end=' ', flush=True)
         urls = tuple(GeekbenchUrls.search(keywords, page) for page in range(1, n_pages + 1))
-        tasks = map(asyncio.ensure_future, (fetch(sess, url, proxy)
+        tasks = map(asyncio.ensure_future, (fetch(sess, url, proxy=proxy, retry=args.n_retry)
                                             for url, proxy in zip(urls, itertools.cycle(args.proxy))))
         htmls = await asyncio.gather(*tasks)
         urls = []
@@ -79,13 +81,13 @@ async def getResults(args:argparse.Namespace) -> list:
                 if 'model' in td['class']:
                     urls.append(GeekbenchUrls.custom(td.a['href']))
         if urls:
-            print('OK', flush=True)
+            print(f'{len(urls)} results to retrieve', flush=True)
         else:
             print('ERROR', flush=True)
             sys.exit()
 
-        print('Fetching scores...', end=' ', flush=True)
-        tasks = map(asyncio.ensure_future, (fetch(sess, url, proxy)
+        print('Fetching results...', end=' ', flush=True)
+        tasks = map(asyncio.ensure_future, (fetch(sess, url, proxy=proxy, retry=args.n_retry)
                                             for url, proxy in zip(urls, itertools.cycle(args.proxy))))
         htmls = await asyncio.gather(*tasks)
         for idx, html in enumerate(htmls):
@@ -161,10 +163,12 @@ if __name__ == '__main__':
                 For a higher speed, try a group of load-balanced proxy servers.')
     parser.add_argument('keywords', metavar='keyword', type=str, nargs='+',
                         help='the keywords to search results')
-    parser.add_argument('-n', '--number', metavar='int', dest='n_results',type=int, default=100,
-                        help='the number of results to fetch (default: 100)')
+    parser.add_argument('-n', '--number', metavar='int', dest='n_pages',type=int, default=4,
+                        help='the number of page of search results to fetch (default: 4)')
     parser.add_argument('-c', '--connections', metavar='int', dest='n_connections', type=int, default=5,
                         help='the number of simultaneous connections (default: 5)')
+    parser.add_argument('--retry', metavar='int', dest='n_retry', type=int, default=3,
+                        help='the number of connection retries to attempt (default: 3)')
     parser.add_argument('--proxy', metavar='addr:port', dest='proxy', type=str, nargs='+', default=[None],
                         help='the proxies for connections (http only)')
     parser.add_argument('--with', metavar='keyword', dest='with_keywords', type=str, nargs='+', default=[],
