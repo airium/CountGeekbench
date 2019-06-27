@@ -2,15 +2,12 @@ import re
 import sys
 import asyncio
 import argparse
-import itertools
 import urllib.parse
+from itertools import cycle
 
 import bs4
 import aiohttp
 import numpy as np
-
-
-RESULTS_PER_PAGE = 25
 
 
 class GeekbenchUrls():
@@ -59,46 +56,57 @@ async def getResults(args:argparse.Namespace) -> list:
     connector = aiohttp.TCPConnector(limit_per_host=args.n_connections)
     async with aiohttp.ClientSession(connector=connector) as sess:
 
-        print(f'Looking for {args.n_pages} pages of results...', end=' ', flush=True)
-        html = await fetch(sess, GeekbenchUrls.search(keywords), proxy=args.proxy[0], retry=args.n_retry)
-        n_results = bs4.BeautifulSoup(html, 'html.parser').find_all('h2')[0].small.string
-        n_results = int(n_results.split(' ')[0].replace(',', ''))
-        n_pages = n_results // 25 + (1 if n_results % RESULTS_PER_PAGE else 0)
-        if n_pages:
-            print(f'{n_pages} found', flush=True)
-            n_pages = min(args.n_pages, n_pages)
-        else:
+        print(f'Expecting {args.n_pages} page(s) of results...', end=' ', flush=True)
+        urls = tuple(GeekbenchUrls.search(keywords, page) for page in range(1, args.n_pages + 1))
+        tasks = map(asyncio.ensure_future, (fetch(sess, url, proxy=proxy, retry=args.n_retry)
+                                            for url, proxy in zip(urls, cycle(args.proxy))))
+        htmls = await asyncio.gather(*tasks)
+
+        n = args.n_pages
+        for i, html in enumerate(htmls):
+            if 'Geekbench 4 CPU Search' not in html or 'did not match any' in html:
+                n -= 1
+                htmls[i] = ''
+        print(f'{n} fetched', flush=True)
+        if not n:
             sys.exit()
 
-        print('Gathering links...', end=' ', flush=True)
-        urls = tuple(GeekbenchUrls.search(keywords, page) for page in range(1, n_pages + 1))
-        tasks = map(asyncio.ensure_future, (fetch(sess, url, proxy=proxy, retry=args.n_retry)
-                                            for url, proxy in zip(urls, itertools.cycle(args.proxy))))
-        htmls = await asyncio.gather(*tasks)
         urls = []
         for html in htmls:
             for td in bs4.BeautifulSoup(html, 'html.parser').find_all('td'):
                 if 'model' in td['class']:
                     urls.append(GeekbenchUrls.custom(td.a['href']))
-        if urls:
-            print(f'{len(urls)} results to retrieve', flush=True)
-        else:
-            print('ERROR', flush=True)
-            sys.exit()
+        assert urls, 'ERROR: no result link parsed'
 
-        print('Fetching results...', end=' ', flush=True)
+        print(f'Gathering {len(urls)} results...', end=' ', flush=True)
         tasks = map(asyncio.ensure_future, (fetch(sess, url, proxy=proxy, retry=args.n_retry)
-                                            for url, proxy in zip(urls, itertools.cycle(args.proxy))))
+                                            for url, proxy in zip(urls, cycle(args.proxy))))
         htmls = await asyncio.gather(*tasks)
-        for idx, html in enumerate(htmls):
-            for keyword in args.with_keywords:
-                if keyword not in html:
-                    htmls[idx] = '';
-                    break
-            for keyword in args.without_keywords:
-                if keyword in html:
-                    htmls[idx] = '';
-                    break
+
+        n = len(urls)
+        for i, html in enumerate(htmls):
+            if 'Result Information' not in html:
+                n -= 1
+                htmls[i] = ''
+        print(f'{n} fetched', end=' ', flush=True)
+
+        if args.with_keywords or args.without_keywords:
+            for idx, html in enumerate(htmls):
+                for keyword in args.with_keywords:
+                    if keyword not in html:
+                        htmls[idx] = '';
+                        n -=1
+                        break
+                for keyword in args.without_keywords:
+                    if keyword in html:
+                        htmls[idx] = '';
+                        n -= 1
+                        break
+            print(f'-> {n} filtered', end='', flush=True)
+        if not n:
+            sys.exit()
+        print()
+
         scores = []
         for html in htmls:
             for th in bs4.BeautifulSoup(html, 'html.parser').find_all('th'):
@@ -108,11 +116,7 @@ async def getResults(args:argparse.Namespace) -> list:
                         scores.append(int(th.string))
                     except ValueError:
                         continue
-        if scores:
-            print('OK', flush=True)
-        else:
-            print('ERROR', flush=True)
-            sys.exit()
+        assert scores and not len(scores) % 10, f'bad number of scores ({len(scores)})'
 
     return scores
 
@@ -130,7 +134,7 @@ def main(args:argparse.Namespace) -> None:
     idx3 = np.where(scores[:, 5] >= mt_avg - 1 * mt_std)
     idx4 = np.where(scores[:, 5] <= mt_avg + 1 * mt_std)
     idx = np.intersect1d(np.intersect1d(idx1, idx2), np.intersect1d(idx3, idx4))
-    print(f'Using {len(idx)} of {len(scores)} results within 1 standard deviation')
+    print(f'Using {len(idx)} results within 1 standard deviation')
 
     scores = scores[idx]
     st_tot = int(np.mean(scores[:, 0]))
@@ -158,8 +162,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         formatter_class=lambda prog: CustomHelpFormatter(prog),
         description='count a device\'s average score and sub-scores on Geekbench 4.',
-        epilog='The maximum number of simultaneous requests to Geekbench seems to be around 5. \
-                Exceeding this number will receive the http 429 error. \
+        epilog='The maximum number of simultaneous requests to Geekbench seems to be around 5 per IP.\
+                Exceeding this number will receive http 429 error. \
                 For a higher speed, try a group of load-balanced proxy servers.')
     parser.add_argument('keywords', metavar='keyword', type=str, nargs='+',
                         help='the keywords to search results')
