@@ -14,7 +14,7 @@ class GeekbenchUrls():
 
     @classmethod
     def base(cls) -> str:
-        return 'https://browser.geekbench.com'
+        return 'http://browser.geekbench.com'
 
     @classmethod
     def search(cls, keywords, page=None) -> str:
@@ -95,7 +95,7 @@ async def getResults(args:argparse.Namespace) -> list:
                 for keyword in args.with_keywords:
                     if keyword not in html:
                         htmls[idx] = '';
-                        n -=1
+                        n -= 1
                         break
                 for keyword in args.without_keywords:
                     if keyword in html:
